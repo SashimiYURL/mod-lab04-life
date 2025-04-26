@@ -4,6 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Text.Json;
+using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace cli_life
 {
@@ -86,46 +89,142 @@ namespace cli_life
             }
         }
     }
+
+    public class ConfigReader
+    {
+        public static BoardConfig ReadSettings(string filePath)
+        {
+            return JsonSerializer.Deserialize<BoardConfig>(File.ReadAllText(filePath));
+        }
+    }
+
+    public class BoardConfig
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public int CellSize { get; set; }
+        public double LiveDensity { get; set; }
+
+        public BoardConfig(int width, int height, int cellSize, double liveDensity)
+        {
+            Width = width;
+            Height = height;
+            CellSize = cellSize;
+            LiveDensity = liveDensity;
+        }
+    }
+
+    public static class FileHandler
+    {
+        public static void SaveBoardState(string filePath, Board board)
+        {
+            using var writer = new StreamWriter(filePath);
+            for (int row = 0; row < board.Rows; row++)
+            {
+                for (int col = 0; col < board.Columns; col++)
+                    writer.Write(board.Cells[col, row].IsAlive ? '1' : '0');
+                writer.WriteLine();
+            }
+        }
+
+        public static Board LoadBoardState(string filePath)
+        {
+            var lines = File.ReadAllLines(filePath);
+            var board = new Board(lines[0].Length, lines.Length, 1);
+
+            for (int row = 0; row < lines.Length; row++)
+                for (int col = 0; col < lines[row].Length; col++)
+                    board.Cells[col, row].IsAlive = lines[row][col] == '1';
+
+            return board;
+        }
+    }
+
     class Program
     {
         static Board board;
-        static private void Reset()
+        static BoardConfig settings;
+        static int generation = 0;
+        static bool isPaused = false;
+        
+
+        static void Reset(BoardConfig properties)
         {
             board = new Board(
-                width: 50,
-                height: 20,
-                cellSize: 1,
-                liveDensity: 0.5);
+                properties.Width,
+                properties.Height,
+                properties.CellSize,
+                properties.LiveDensity);
+            
+            generation = 0;
         }
         static void Render()
         {
+            var display = new StringBuilder();
+            
             for (int row = 0; row < board.Rows; row++)
             {
-                for (int col = 0; col < board.Columns; col++)   
-                {
-                    var cell = board.Cells[col, row];
-                    if (cell.IsAlive)
-                    {
-                        Console.Write('*');
-                    }
-                    else
-                    {
-                        Console.Write(' ');
-                    }
-                }
-                Console.Write('\n');
+                for (int col = 0; col < board.Columns; col++)
+                    display.Append(board.Cells[col, row].IsAlive ? '*' : ' ');
+                display.AppendLine();
+            }
+            
+            //display.Append(GetStatusInfo());
+            Console.SetCursorPosition(0, 0);
+            Console.Write(display);
+        }
+
+
+        static bool HandleInput(string savePath)
+        {
+            if (!Console.KeyAvailable) return false;
+            
+            switch (Console.ReadKey(true).Key)
+            {
+                case ConsoleKey.S:
+                    FileHandler.SaveBoardState(savePath, board);
+                    Console.WriteLine("Board state saved!");
+                    return false;
+                case ConsoleKey.P:
+                    isPaused = !isPaused;
+                    return false;
+                case ConsoleKey.Escape:
+                    return true;
+                default:
+                    return false;
             }
         }
+
+        static void RunSimulation(string savePath)
+        {
+            while (true)
+            {
+                if (HandleInput(savePath)) break;
+                
+                if (!isPaused)
+                {
+                    generation++;
+                    Console.Clear();
+                    Render();
+                    board.Advance();
+                    Thread.Sleep(100);
+                }
+            }
+        }
+        
         static void Main(string[] args)
         {
-            Reset();
-            while(true)
-            {
-                Console.Clear();
-                Render();
-                board.Advance();
-                Thread.Sleep(1000);
-            }
+            string settingsPath = @"C:\Users\vniki\source\repos\Yurlova-mod-lab04\mod-lab04-life\Life\config.json";
+            string projectDir = Environment.CurrentDirectory;
+            //string settingsPath = Path.Combine(Environment.CurrentDirectory, "config.json");
+            string savePath = Path.Combine(Environment.CurrentDirectory, "board.txt");
+            //string patternsDir = Path.Combine(projectDir, "patterns");
+            //string analysisPath = Path.Combine(projectDir, "analysis.txt");
+
+
+            Reset(ConfigReader.ReadSettings(settingsPath));
+            RunSimulation(savePath);
+            
         }
     }
 }

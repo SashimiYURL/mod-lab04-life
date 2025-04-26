@@ -489,17 +489,17 @@ namespace cli_life
             var results = new StringBuilder();
             string patternsDir = Path.Combine(Environment.CurrentDirectory, "patterns");
 
-            for (double density = 0.05; density <= 1.0; density += densityStep)
+            for (decimal density = 0.02m; density <= 1.0m; density += (decimal)densityStep)
             {
                 var testBoard = new Board(
                     settings.Width,
                     settings.Height,
                     settings.CellSize,
-                    density);
+                    (double)density);
 
                 var testAnalyzer = new BoardAnalyzer(testBoard, patternsDir);
 
-                for (int gen = 0; gen < 10000; gen++)
+                for (int gen = 0; gen < 20000; gen++)
                 {
                     testBoard.Advance();
                     if (testAnalyzer.IsStable())
@@ -515,16 +515,18 @@ namespace cli_life
 
         static void Main(string[] args)
         {
-            string settingsPath = @"C:\Users\vniki\source\repos\Yurlova-mod-lab04\mod-lab04-life\Life\config.json";
-            string projectDir = Environment.CurrentDirectory;
-            //string settingsPath = Path.Combine(Environment.CurrentDirectory, "config.json");
+            // string settingsPath = @"C:\Users\vniki\source\repos\Yurlova-mod-lab04\mod-lab04-life\Life\config.json";
+            string settingsPath = Path.Combine(Environment.CurrentDirectory, "config.json");
             string savePath = Path.Combine(Environment.CurrentDirectory, "board.txt");
-            string patternsDir = Path.Combine(projectDir, "patterns");
-            string analysisPath = Path.Combine(projectDir, "analysis.txt");
+            string patternsDir = Path.Combine(Environment.CurrentDirectory, "patterns");
+            string analysisPath = Path.Combine(Environment.CurrentDirectory, "data.txt");
 
+            settings = ConfigReader.ReadSettings(settingsPath);
 
-            Reset(ConfigReader.ReadSettings(settingsPath), patternsDir);
+            Reset(settings, patternsDir);
             RunSimulation(savePath);
+
+            // AnalyzeStabilityWriter(analysisPath, 0.02d);
 
         }
     }
